@@ -25,7 +25,8 @@ class Price(Base):
     id = Column(Integer, primary_key=True)
     item_id = Column(String)
     name = Column(String)
-    price = Column(Float)
+    # Pricne can be like this 2.9% + 30¢, $20-$35
+    price = Column(String)
     currency = Column(String)
     unit_text = Column(String)
     

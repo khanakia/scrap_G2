@@ -14,6 +14,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.common.by import By
 from selenium.common.exceptions import TimeoutException
+from sqlalchemy.dialects import postgresql
 
 conn = db.get_connection()
 
@@ -162,6 +163,10 @@ def extract_item_data_from_page_source(source: str):
         product['descr'] = cast(Tag, descr).get_text()
     except:
         pass
+
+    headtitle = soup.select_one(".product-head__title a")
+    if headtitle is not None:
+        product['name'] = headtitle.text
         
     logo = soup.find("meta", attrs={'property': 'og:image'})
     product['logo_url'] = cast(Tag, logo).get('content')
@@ -169,9 +174,9 @@ def extract_item_data_from_page_source(source: str):
     aggregateRating = soup.find("span", itemprop="aggregateRating")
    
     if aggregateRating is not None:
-        itemReviewed = cast(Tag, aggregateRating).find("meta", itemprop="itemReviewed")
-        if itemReviewed is not None and hasattr(itemReviewed, 'get'):
-            product['name'] = cast(Tag, itemReviewed).get('content')
+        # itemReviewed = cast(Tag, aggregateRating).find("meta", itemprop="itemReviewed")
+        # if itemReviewed is not None and hasattr(itemReviewed, 'get'):
+        #     product['name'] = cast(Tag, itemReviewed).get('content')
 
         rating = cast(Tag, aggregateRating).find("meta", itemprop="ratingValue")
         if rating is not None and hasattr(rating, 'get'):
@@ -186,7 +191,7 @@ def extract_item_data_from_page_source(source: str):
 
 # get the product links from the database table lnks and fetch each product and then save to items table
 def fetch_links_and_save_as_items():
-    links = db.session.query(db.Link).order_by(text("id asc")).offset(0).limit(10000).all()
+    links = db.session.query(db.Link).order_by(text("id asc")).offset(0).limit(745).all()
     options = uc.ChromeOptions() 
     options.headless = False 
     driver = uc.Chrome(use_subprocess=True, options=options) 
@@ -206,6 +211,7 @@ def fetch_links_and_save_as_items():
         product = extract_item_data_from_page_source(source)
         
         print(json.dumps(product, indent = 3))
+        # continue
 
         item = db.session.query(db.Item).filter_by(link_id=link.id).first()
         if item is None:
@@ -237,7 +243,8 @@ def extract_prices_data_from_page_source(source: str, item_id: int):
             price = 0
             pricenode = pspec.select_one(".editions__price")
             if pricenode is not None:
-                price = make_decimal(pricenode.text[1:])
+                # price = make_decimal(pricenode.text[1:])
+                price = pricenode.text
             
             name = ''
             name_node = pspec.select_one(".editions__name")
@@ -270,7 +277,7 @@ def fetch_item_prices_and_save():
         url = link.url[:link.url.rfind('/')]+"/pricing"
         print("parsing product price page", item.id, url)
         try :
-            driver.get(link.url)
+            driver.get(url)
             WebDriverWait(driver, timeout=10).until(
                 EC.visibility_of_element_located((By.CLASS_NAME, "product-head"))
             )
